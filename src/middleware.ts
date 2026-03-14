@@ -11,6 +11,9 @@ const ROUTE_LIMITS: [string, number, number][] = [
   ["/api/customizations", 10, 60_000],
   ["/api/sky-ads/track", 30, 60_000],
   ["/api/sky-ads", 30, 60_000],
+  ["/api/ads/auth", 5, 60_000],
+  ["/api/ads", 30, 60_000],
+  ["/api/v1/ads", 60, 60_000],
   ["/api/raid", 15, 60_000],
   ["/api/checkin", 10, 60_000],
   ["/api/heartbeats", 60, 60_000],
@@ -69,6 +72,18 @@ function getClientIp(request: NextRequest): string {
 // ---------------------------------------------------------------------------
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ── 0. Old URL Redirects ──────────────────────────────────────────────
+  // Redirect old /advertise/track/[token] to new dashboard login
+  if (pathname.startsWith("/advertise/track/")) {
+    const token = pathname.split("/advertise/track/")[1];
+    if (token) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/ads/login";
+      url.searchParams.set("redirect", `/ads/dashboard`);
+      return NextResponse.redirect(url);
+    }
+  }
 
   // ── 1. Rate Limit ────────────────────────────────────────────────────
   const ip = getClientIp(request);
