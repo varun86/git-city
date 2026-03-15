@@ -462,6 +462,7 @@ function HomeContent() {
   const [kudosError, setKudosError] = useState<string | null>(null);
   const [dropPulling, setDropPulling] = useState(false);
   const [myDropPulls, setMyDropPulls] = useState<Record<string, { points: number }>>({});
+  const myDropPullsLoaded = useRef(false);
   const [dropHint, setDropHint] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [dropPlantOpen, setDropPlantOpen] = useState(false);
@@ -653,6 +654,38 @@ function HomeContent() {
       .then(d => { if (d.key) setVsCodeKey(d.key); })
       .catch(() => { });
   }, [session]);
+
+  // Fetch user's drop pulls from DB (source of truth, survives refresh/device changes)
+  useEffect(() => {
+    if (!session || buildings.length === 0 || myDropPullsLoaded.current) return;
+    const hasDrops = buildings.some((b) => b.active_drop);
+    if (!hasDrops) return;
+    myDropPullsLoaded.current = true;
+
+    let cancelled = false;
+    fetch("/api/drops/my-pulls")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.pulls) return;
+        const pullMap: Record<string, { points: number }> = {};
+        for (const [dropId, info] of Object.entries(data.pulls as Record<string, { points: number; pull_count: number }>)) {
+          pullMap[dropId] = { points: info.points };
+        }
+        if (Object.keys(pullMap).length > 0) {
+          setMyDropPulls(pullMap);
+        }
+        // Patch stale pull_count on buildings with fresh DB values
+        setBuildings((prev) =>
+          prev.map((b) => {
+            const fresh = b.active_drop && (data.pulls as Record<string, { pull_count: number }>)[b.active_drop.id];
+            if (!fresh) return b;
+            return { ...b, active_drop: { ...b.active_drop!, pull_count: fresh.pull_count } };
+          })
+        );
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [session, buildings]);
 
   // Show drop hint once after city loads
   const dropHintShown = useRef(false);
@@ -3877,8 +3910,8 @@ function HomeContent() {
                 const drop = selectedBuilding.active_drop;
                 const rarityColors: Record<string, string> = { common: "#00ff88", rare: "#0088ff", epic: "#aa00ff", legendary: "#ffaa00" };
                 const dropColor = rarityColors[drop.rarity] ?? rarityColors.common;
-                const exhausted = drop.pull_count >= drop.max_pulls;
                 const myPull = myDropPulls[drop.id];
+                const exhausted = drop.pull_count >= drop.max_pulls;
                 return (
                   <div
                     className="mx-4 mb-3 border-2 p-3"
