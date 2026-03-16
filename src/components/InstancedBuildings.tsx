@@ -535,7 +535,7 @@ export default memo(function InstancedBuildings({
     const onPointerDown = (e: PointerEvent) => {
       if (introRef.current) return;
       if (wasAdPointerConsumed()) return;
-      if ((window as any).__spireClicked || (window as any).__arcadeClicked) return;
+      if ((window as any).__spireClicked || (window as any).__arcadeClicked || (window as any).__dinzoClicked) return;
       const id = raycastInstance(e.clientX, e.clientY);
       if (id !== null && id < buildingsRef.current.length) {
         tapRef.current = { time: performance.now(), id, x: e.clientX, y: e.clientY };

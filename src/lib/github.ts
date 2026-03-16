@@ -669,6 +669,8 @@ export function generateCityLayout(devs: DeveloperRecord[]): {
   // ── Reserve grid cells for landmarks ──
   // E.Arcade: grid(1, -1) → world [173, 0, -149]
   occupiedCells.add("1,-1");
+  // Dinzo: grid(-1, 1) → world [-173, 0, 149]
+  occupiedCells.add("-1,1");
 
   // ── A) Downtown: spiral at grid (0, 0) ──
   placeSpiralCluster(downtownDevs, 0, 0, true);
