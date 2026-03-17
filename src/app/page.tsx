@@ -18,6 +18,8 @@ import {
   type DistrictZone,
   type DeveloperRecord,
 } from "@/lib/github";
+import { SPONSORS, gridToWorldPos } from "@/lib/sponsors/registry";
+import { getLandmarkAdId } from "@/lib/sponsors/landmarkAdIds";
 import Image from "next/image";
 import Link from "next/link";
 import ActivityTicker, { type FeedEvent } from "@/components/ActivityTicker";
@@ -52,6 +54,7 @@ import {
   trackSignInPromptClicked,
   trackDisabledButtonClicked,
   trackEArcadeClicked,
+  trackLandmarkClicked,
 } from "@/lib/himetrica";
 
 const CityCanvas = dynamic(() => import("@/components/CityCanvas"), {
@@ -65,7 +68,7 @@ const RaidOverlay = dynamic(() => import("@/components/RaidOverlay"), { ssr: fal
 const PillModal = dynamic(() => import("@/components/PillModal"), { ssr: false });
 const FounderMessage = dynamic(() => import("@/components/FounderMessage"), { ssr: false });
 const EArcadeCard = dynamic(() => import("@/components/EArcadeCard"), { ssr: false });
-const DinzoCard = dynamic(() => import("@/components/DinzoCard"), { ssr: false });
+const SponsoredCard = dynamic(() => import("@/lib/sponsors/SponsoredCard"), { ssr: false });
 const RabbitCompletion = dynamic(() => import("@/components/RabbitCompletion"), { ssr: false });
 const DistrictChooser = dynamic(() => import("@/components/DistrictChooser"), { ssr: false });
 const LevelUpToast = dynamic(() => import("@/components/LevelUpToast"), { ssr: false });
@@ -492,7 +495,7 @@ function HomeContent() {
   const [pillModalOpen, setPillModalOpen] = useState(false);
   const [founderMessageOpen, setFounderMessageOpen] = useState(false);
   const [eArcadeOpen, setEArcadeOpen] = useState(false);
-  const [dinzoOpen, setDinzoOpen] = useState(false);
+  const [activeSponsor, setActiveSponsor] = useState<string | null>(null);
   const [districtChooserOpen, setDistrictChooserOpen] = useState(false);
   const [rabbitCinematic, setRabbitCinematic] = useState(false);
   const [rabbitCinematicPhase, setRabbitCinematicPhase] = useState(-1);
@@ -1009,15 +1012,15 @@ function HomeContent() {
   // During fly mode: only close overlays (profile card) — AirplaneFlight handles pause/exit
   // Outside fly mode: compare → share modal → profile card → focus → explore mode
   useEffect(() => {
-    if (flyMode && !selectedBuilding && !pillModalOpen && !founderMessageOpen && !eArcadeOpen && !dinzoOpen) return;
-    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftClaimed && !giftModalOpen && !comparePair && !compareBuilding && !founderMessageOpen && !pillModalOpen && !eArcadeOpen && !dinzoOpen && !rabbitCinematic && !invitePreview && raidState.phase === "idle") return;
+    if (flyMode && !selectedBuilding && !pillModalOpen && !founderMessageOpen && !eArcadeOpen && !activeSponsor) return;
+    if (!flyMode && !exploreMode && !focusedBuilding && !shareData && !selectedBuilding && !giftClaimed && !giftModalOpen && !comparePair && !compareBuilding && !founderMessageOpen && !pillModalOpen && !eArcadeOpen && !activeSponsor && !rabbitCinematic && !invitePreview && raidState.phase === "idle") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         // Founder modals take highest priority
         if (founderMessageOpen) { setFounderMessageOpen(false); return; }
         if (pillModalOpen) { setPillModalOpen(false); return; }
         if (eArcadeOpen) { setEArcadeOpen(false); return; }
-        if (dinzoOpen) { setDinzoOpen(false); return; }
+        if (activeSponsor) { setActiveSponsor(null); return; }
         // Rabbit cinematic
         if (rabbitCinematic) { endRabbitCinematic(); return; }
         // Raid takes priority
@@ -1061,7 +1064,7 @@ function HomeContent() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftClaimed, giftModalOpen, comparePair, compareBuilding, founderMessageOpen, pillModalOpen, eArcadeOpen, dinzoOpen, rabbitCinematic, endRabbitCinematic, raidState.phase, raidActions, invitePreview]);
+  }, [flyMode, exploreMode, focusedBuilding, shareData, selectedBuilding, giftClaimed, giftModalOpen, comparePair, compareBuilding, founderMessageOpen, pillModalOpen, eArcadeOpen, activeSponsor, rabbitCinematic, endRabbitCinematic, raidState.phase, raidActions, invitePreview]);
 
   // Rabbit cinematic text phase timing (8s total flyover)
   useEffect(() => {
@@ -2156,7 +2159,7 @@ function HomeContent() {
         accentColor={theme.accent}
         onClearFocus={() => setFocusedBuilding(null)}
         flyPauseSignal={flyPauseSignal}
-        flyHasOverlay={!!selectedBuilding || pillModalOpen || founderMessageOpen || eArcadeOpen || dinzoOpen || rabbitCinematic}
+        flyHasOverlay={!!selectedBuilding || pillModalOpen || founderMessageOpen || eArcadeOpen || !!activeSponsor || rabbitCinematic}
         flyStartPaused={showFlyControls}
         holdRise={loadStage !== "done"}
         celebrationActive={celebrationActive}
@@ -2217,7 +2220,23 @@ function HomeContent() {
         onRaidPhaseComplete={raidActions.onPhaseComplete}
         onLandmarkClick={() => { setPillModalOpen(true); setSelectedBuilding(null); }}
         onEArcadeClick={() => { trackEArcadeClicked(); setEArcadeOpen(true); setSelectedBuilding(null); }}
-        onDinzoClick={() => { setDinzoOpen(true); setSelectedBuilding(null); }}
+        onSponsorClick={(slug) => {
+          trackLandmarkClicked(slug);
+          const adId = getLandmarkAdId(slug);
+          if (adId) fetch("/api/sky-ads/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ad_id: adId, event_type: "click" }) }).catch(() => {});
+          if (!exploreMode) setExploreMode(true);
+          setActiveSponsor(slug);
+          setSelectedBuilding(null);
+          setFocusedBuilding(null);
+        }}
+        sponsorFocusPos={(() => {
+          if (!activeSponsor) return null;
+          const sp = SPONSORS.find(s => s.slug === activeSponsor);
+          if (!sp) return null;
+          const pos = gridToWorldPos(sp.gridX, sp.gridZ);
+          return [pos[0], sp.hitboxHeight * 0.6, pos[2]] as [number, number, number];
+        })()}
+        activeSponsorSlug={activeSponsor}
         rabbitSighting={rabbitSighting}
         onRabbitCaught={onRabbitCaught}
         rabbitCinematic={rabbitCinematic}
@@ -5251,10 +5270,11 @@ function HomeContent() {
         />
       )}
 
-      {/* Dinzo card */}
-      {dinzoOpen && (
-        <DinzoCard onClose={() => setDinzoOpen(false)} />
-      )}
+      {/* Sponsored landmark card */}
+      {activeSponsor && (() => {
+        const cfg = SPONSORS.find((s) => s.slug === activeSponsor);
+        return cfg ? <SponsoredCard config={cfg} onClose={() => setActiveSponsor(null)} /> : null;
+      })()}
 
       {/* Rabbit Quest Cinematic Overlay */}
       {rabbitCinematic && (

@@ -1,17 +1,42 @@
 "use client";
 
-const ACCENT = "#4285F4";
+import { useEffect } from "react";
+import type { SponsorConfig } from "./registry";
+import { trackLandmarkCardViewed, trackLandmarkCtaClicked } from "@/lib/himetrica";
+import { trackAdEvent } from "@/lib/skyAds";
+import { getLandmarkAdId } from "./landmarkAdIds";
 
-interface DinzoCardProps {
+function buildUtmUrl(config: SponsorConfig): string {
+  const url = new URL(config.url);
+  const now = new Date();
+  const month = `${now.getFullYear()}_${String(now.getMonth() + 1).padStart(2, "0")}`;
+  url.searchParams.set("utm_source", "gitcity");
+  url.searchParams.set("utm_medium", "sponsored_landmark");
+  url.searchParams.set("utm_campaign", `${config.slug}_${month}`);
+  return url.toString();
+}
+
+interface SponsoredCardProps {
+  config: SponsorConfig;
   onClose: () => void;
 }
 
-export default function DinzoCard({ onClose }: DinzoCardProps) {
+export default function SponsoredCard({ config, onClose }: SponsoredCardProps) {
+  const { accent } = config;
+  const ctaUrl = buildUtmUrl(config);
+
+  // Track card view on mount
+  useEffect(() => {
+    trackLandmarkCardViewed(config.slug);
+    const adId = getLandmarkAdId(config.slug);
+    if (adId) trackAdEvent(adId, "click");
+  }, [config.slug]);
+
   return (
     <>
       {/* Nav hints — desktop only */}
       <div className="pointer-events-none fixed bottom-6 right-6 z-30 hidden text-right text-[9px] leading-loose text-muted sm:block">
-        <div><span style={{ color: ACCENT }}>ESC</span> close</div>
+        <div><span style={{ color: accent }}>ESC</span> close</div>
       </div>
 
       {/* Card container */}
@@ -42,22 +67,17 @@ export default function DinzoCard({ onClose }: DinzoCardProps) {
               {/* Logo icon */}
               <div
                 className="flex h-12 w-12 shrink-0 items-center justify-center border-2 rounded-lg"
-                style={{ borderColor: ACCENT, backgroundColor: ACCENT + "11" }}
+                style={{ borderColor: accent, backgroundColor: accent + "11", color: accent }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M12 3a9 9 0 0 1 6.36 2.64l-1.42 1.42A7 7 0 1 0 19 12h-3l4-4 4 4h-3a9 9 0 0 1-9 9 9 9 0 0 1-9-9 9 9 0 0 1 9-9z"
-                    fill={ACCENT}
-                  />
-                  <line x1="12" y1="12" x2="15" y2="8" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" />
-                  <circle cx="12" cy="12" r="1.5" fill={ACCENT} />
-                </svg>
+                {config.logoSvg ?? (
+                  <span className="text-sm font-bold">{config.name[0]}</span>
+                )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold" style={{ color: ACCENT }}>
-                  Dinzo
+                <p className="text-sm font-bold" style={{ color: accent }}>
+                  {config.name}
                 </p>
-                <p className="text-[10px] text-muted">Controle financeiro pessoal</p>
+                <p className="text-[10px] text-muted">{config.tagline}</p>
               </div>
             </div>
           </div>
@@ -68,32 +88,26 @@ export default function DinzoCard({ onClose }: DinzoCardProps) {
           {/* Info */}
           <div className="px-4 py-3 space-y-2">
             <p className="text-[10px] text-muted leading-relaxed">
-              Organize contas, cartoes e gastos num so lugar. Categorias com IA, lembretes de pagamento e relatorios visuais. Mais pratico que qualquer planilha.
+              {config.description}
             </p>
 
             {/* Features */}
             <div className="space-y-1">
-              <div className="flex items-center gap-1.5">
-                <div className="h-1 w-1 rounded-full" style={{ backgroundColor: ACCENT }} />
-                <span className="text-[9px] text-muted">Open Finance</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-1 w-1 rounded-full" style={{ backgroundColor: ACCENT }} />
-                <span className="text-[9px] text-muted">Categorias com IA</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-1 w-1 rounded-full" style={{ backgroundColor: ACCENT }} />
-                <span className="text-[9px] text-muted">iOS, Android & Web</span>
-              </div>
+              {config.features.map((feat) => (
+                <div key={feat} className="flex items-center gap-1.5">
+                  <div className="h-1 w-1 rounded-full" style={{ backgroundColor: accent }} />
+                  <span className="text-[9px] text-muted">{feat}</span>
+                </div>
+              ))}
             </div>
 
             {/* Sponsored badge */}
             <div className="flex items-center gap-1.5 pt-1">
               <div
                 className="h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: ACCENT }}
+                style={{ backgroundColor: accent }}
               />
-              <span className="text-[9px]" style={{ color: ACCENT + "99" }}>Sponsored landmark</span>
+              <span className="text-[9px]" style={{ color: accent + "99" }}>Sponsored landmark</span>
             </div>
           </div>
 
@@ -103,17 +117,22 @@ export default function DinzoCard({ onClose }: DinzoCardProps) {
           {/* Action */}
           <div className="px-4 py-3">
             <a
-              href="https://dinzo.com.br/"
+              href={ctaUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => {
+                trackLandmarkCtaClicked(config.slug, ctaUrl);
+                const adId = getLandmarkAdId(config.slug);
+                if (adId) trackAdEvent(adId, "cta_click");
+              }}
               className="block w-full py-2 text-center text-[10px] font-bold uppercase tracking-wider border-2 transition-all hover:brightness-110"
               style={{
-                borderColor: ACCENT,
-                color: ACCENT,
-                backgroundColor: ACCENT + "11",
+                borderColor: accent,
+                color: accent,
+                backgroundColor: accent + "11",
               }}
             >
-              Visit dinzo.com.br
+              Visit {new URL(config.url).hostname}
             </a>
           </div>
         </div>

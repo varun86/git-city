@@ -79,6 +79,7 @@ interface CitySceneProps {
   holdRise?: boolean;
   liveByLogin?: Map<string, LiveSession>;
   cityEnergy?: number;
+  dimAll?: boolean;
 }
 
 export default function CityScene({
@@ -96,6 +97,7 @@ export default function CityScene({
   holdRise,
   liveByLogin,
   cityEnergy,
+  dimAll,
 }: CitySceneProps) {
   // Single atlas texture for all building windows (created once per theme)
   const atlasTexture = useMemo(() => createWindowAtlas(colors), [colors]);
@@ -170,6 +172,7 @@ export default function CityScene({
         holdRise={holdRise}
         liveByLogin={liveByLogin}
         cityEnergy={cityEnergy}
+        dimAll={dimAll}
       />
 
       {/* Live presence dots above active buildings */}
