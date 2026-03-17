@@ -32,12 +32,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing required fields: id, brand, text" }, { status: 400 });
   }
 
-  const validVehicles = ["plane", "blimp", "billboard", "rooftop_sign", "led_wrap"];
+  const validVehicles = ["plane", "blimp", "billboard", "rooftop_sign", "led_wrap", "landmark"];
   const safeVehicle = validVehicles.includes(vehicle) ? vehicle : "plane";
 
   const trackingToken = generateToken();
-
   const admin = getSupabaseAdmin();
+
+  // For landmarks with an email, auto-create advertiser account and link it
+  let advertiserId: string | null = null;
+  if (safeVehicle === "landmark" && purchaser_email) {
+    const { data: existing } = await admin
+      .from("advertiser_accounts")
+      .select("id")
+      .eq("email", purchaser_email)
+      .single();
+
+    if (existing) {
+      advertiserId = existing.id;
+    } else {
+      const { data: created } = await admin
+        .from("advertiser_accounts")
+        .insert({ email: purchaser_email, name: brand })
+        .select("id")
+        .single();
+      if (created) advertiserId = created.id;
+    }
+  }
+
   const { data, error } = await admin.from("sky_ads").insert({
     id,
     brand,
@@ -53,6 +74,7 @@ export async function POST(request: Request) {
     tracking_token: trackingToken,
     purchaser_email: purchaser_email ?? null,
     plan_id: plan_id ?? null,
+    ...(advertiserId ? { advertiser_id: advertiserId } : {}),
   }).select().single();
 
   if (error) {

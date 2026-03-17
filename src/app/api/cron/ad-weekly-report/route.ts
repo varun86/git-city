@@ -13,6 +13,9 @@ export async function GET(request: NextRequest) {
   const sb = getSupabaseAdmin();
   const results = { sent: 0, skipped: 0, errors: 0 };
 
+  // Deactivate expired ads before generating reports
+  try { await sb.rpc("deactivate_expired_ads"); } catch {}
+
   // Get all advertisers with active ads
   const { data: advertisers } = await sb
     .from("advertiser_accounts")
@@ -41,34 +44,24 @@ export async function GET(request: NextRequest) {
 
       const adIds = ads.map((a) => a.id);
 
-      // Current week stats
-      const { data: currentStats } = await sb
-        .from("sky_ad_daily_stats")
-        .select("ad_id, impressions, clicks, cta_clicks")
-        .in("ad_id", adIds)
-        .gte("day", sevenDaysAgo);
+      // Aggregate in Postgres via RPCs (no row limit issues)
+      const [currentResult, prevResult] = await Promise.all([
+        sb.rpc("get_ad_stats", { p_since: sevenDaysAgo, p_until: null, p_ad_ids: adIds }),
+        sb.rpc("get_ad_stats", { p_since: fourteenDaysAgo, p_until: sevenDaysAgo, p_ad_ids: adIds }),
+      ]);
 
-      // Previous week stats
-      const { data: prevStats } = await sb
-        .from("sky_ad_daily_stats")
-        .select("ad_id, impressions, clicks, cta_clicks")
-        .in("ad_id", adIds)
-        .gte("day", fourteenDaysAgo)
-        .lt("day", sevenDaysAgo);
+      // Per-ad totals
+      const adTotals = new Map<string, { impressions: number; engagements: number; linkClicks: number }>();
+      let totalImp = 0, totalEng = 0, totalLinks = 0;
 
-      // Aggregate per ad
-      const adTotals = new Map<string, { impressions: number; clicks: number }>();
-      let totalImp = 0, totalClk = 0;
-
-      for (const row of currentStats ?? []) {
-        const cur = adTotals.get(row.ad_id) ?? { impressions: 0, clicks: 0 };
+      for (const row of currentResult.data ?? []) {
         const imp = Number(row.impressions);
-        const clk = Number(row.clicks) + Number(row.cta_clicks);
-        cur.impressions += imp;
-        cur.clicks += clk;
-        adTotals.set(row.ad_id, cur);
+        const eng = Number(row.clicks);
+        const links = Number(row.cta_clicks);
+        adTotals.set(row.ad_id, { impressions: imp, engagements: eng, linkClicks: links });
         totalImp += imp;
-        totalClk += clk;
+        totalEng += eng;
+        totalLinks += links;
       }
 
       // Skip if zero impressions
@@ -77,19 +70,24 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      let prevImp = 0, prevClk = 0;
-      for (const row of prevStats ?? []) {
+      let prevImp = 0, prevEng = 0, prevLinks = 0;
+      for (const row of prevResult.data ?? []) {
         prevImp += Number(row.impressions);
-        prevClk += Number(row.clicks) + Number(row.cta_clicks);
+        prevEng += Number(row.clicks);
+        prevLinks += Number(row.cta_clicks);
       }
 
+      const totalClicks = totalEng + totalLinks;
+
       const adReports = ads.map((ad) => {
-        const t = adTotals.get(ad.id) ?? { impressions: 0, clicks: 0 };
+        const t = adTotals.get(ad.id) ?? { impressions: 0, engagements: 0, linkClicks: 0 };
+        const adTotalClicks = t.engagements + t.linkClicks;
         return {
           brand: ad.brand || ad.text.slice(0, 30),
           impressions: t.impressions,
-          clicks: t.clicks,
-          ctr: t.impressions > 0 ? ((t.clicks / t.impressions) * 100).toFixed(2) + "%" : "0%",
+          engagements: t.engagements,
+          linkClicks: t.linkClicks,
+          ctr: t.impressions > 0 ? ((adTotalClicks / t.impressions) * 100).toFixed(2) + "%" : "0%",
         };
       });
 
@@ -99,10 +97,11 @@ export async function GET(request: NextRequest) {
         ads: adReports,
         totals: {
           impressions: totalImp,
-          clicks: totalClk,
-          ctr: totalImp > 0 ? ((totalClk / totalImp) * 100).toFixed(2) + "%" : "0%",
+          engagements: totalEng,
+          linkClicks: totalLinks,
+          ctr: totalImp > 0 ? ((totalClicks / totalImp) * 100).toFixed(2) + "%" : "0%",
         },
-        prevTotals: { impressions: prevImp, clicks: prevClk },
+        prevTotals: { impressions: prevImp, engagements: prevEng, linkClicks: prevLinks },
       });
 
       results.sent++;

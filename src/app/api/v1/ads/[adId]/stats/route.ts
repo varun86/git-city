@@ -45,18 +45,19 @@ export async function GET(
 
   const period = request.nextUrl.searchParams.get("period") ?? "30d";
   const days = period === "7d" ? 7 : period === "90d" ? 90 : period === "all" ? null : 30;
+  const since = days ? new Date(Date.now() - days * 86400000).toISOString().split("T")[0] : null;
 
-  let query = sb.from("sky_ad_daily_stats").select("day, impressions, clicks, cta_clicks").eq("ad_id", adId);
-  if (days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
-    query = query.gte("day", since);
-  }
-  const { data: stats } = await query;
+  // Aggregate in Postgres via RPC (no row limit issues)
+  const { data: dailyStats } = await sb.rpc("get_ad_daily_stats", {
+    p_since: since,
+    p_until: null,
+    p_ad_ids: [adId],
+  });
 
   let impressions = 0, clicks = 0, cta_clicks = 0;
   const daily: { day: string; impressions: number; clicks: number; cta_clicks: number }[] = [];
 
-  for (const row of stats ?? []) {
+  for (const row of dailyStats ?? []) {
     const imp = Number(row.impressions);
     const clk = Number(row.clicks);
     const cta = Number(row.cta_clicks);
@@ -66,7 +67,6 @@ export async function GET(
     daily.push({ day: row.day, impressions: imp, clicks: clk, cta_clicks: cta });
   }
 
-  daily.sort((a, b) => a.day.localeCompare(b.day));
   const totalClicks = clicks + cta_clicks;
   const ctr = impressions > 0 ? ((totalClicks / impressions) * 100).toFixed(2) + "%" : "0.00%";
 

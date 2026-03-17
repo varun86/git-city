@@ -52,45 +52,35 @@ export async function GET(request: NextRequest) {
   }
 
   const adIds = ads.map((a) => a.id);
-
-  // Query stats from materialized view
-  // The view has rows per (ad_id, day, country, device), so row counts can
-  // be much higher than just ad_id x day. Supabase defaults to 1000 rows,
-  // which silently truncates results and makes period filtering look broken.
   const queryAdIds = filterAdId && adIds.includes(filterAdId) ? [filterAdId] : adIds;
-  let query = sb.from("sky_ad_daily_stats").select("ad_id, day, impressions, clicks, cta_clicks").in("ad_id", queryAdIds).limit(50000);
-  if (days) {
-    const since = new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
-    query = query.gte("day", since);
-  }
-  const { data: stats } = await query;
 
-  // Previous period for comparison
-  let prevStats: typeof stats = [];
-  if (days) {
-    const prevSince = new Date(Date.now() - days * 2 * 86400000).toISOString().split("T")[0];
-    const prevUntil = new Date(Date.now() - days * 86400000).toISOString().split("T")[0];
-    const { data } = await sb
-      .from("sky_ad_daily_stats")
-      .select("ad_id, day, impressions, clicks, cta_clicks")
-      .in("ad_id", queryAdIds)
-      .gte("day", prevSince)
-      .lt("day", prevUntil)
-      .limit(50000);
-    prevStats = data ?? [];
-  }
+  const since = days ? new Date(Date.now() - days * 86400000).toISOString().split("T")[0] : null;
+  const prevSince = days ? new Date(Date.now() - days * 2 * 86400000).toISOString().split("T")[0] : null;
+  const prevUntil = since;
 
-  // Aggregate per ad
+  // Aggregate in Postgres via RPCs (no row limit issues)
+  const [currentResult, dailyResult] = await Promise.all([
+    sb.rpc("get_ad_stats", { p_since: since, p_until: null, p_ad_ids: queryAdIds }),
+    sb.rpc("get_ad_daily_stats", { p_since: since, p_until: null, p_ad_ids: queryAdIds }),
+  ]);
+
+  const prevResult = days
+    ? await sb.rpc("get_ad_stats", { p_since: prevSince, p_until: prevUntil, p_ad_ids: queryAdIds })
+    : null;
+
+  // Build per-ad stats map
   const adStats = new Map<string, { impressions: number; clicks: number; cta_clicks: number }>();
+  for (const row of currentResult.data ?? []) {
+    adStats.set(row.ad_id, {
+      impressions: Number(row.impressions),
+      clicks: Number(row.clicks),
+      cta_clicks: Number(row.cta_clicks),
+    });
+  }
+
+  // Build daily chart data
   const dailyMap = new Map<string, { impressions: number; clicks: number }>();
-
-  for (const row of stats ?? []) {
-    const cur = adStats.get(row.ad_id) ?? { impressions: 0, clicks: 0, cta_clicks: 0 };
-    cur.impressions += Number(row.impressions);
-    cur.clicks += Number(row.clicks);
-    cur.cta_clicks += Number(row.cta_clicks);
-    adStats.set(row.ad_id, cur);
-
+  for (const row of dailyResult.data ?? []) {
     const dayCur = dailyMap.get(row.day) ?? { impressions: 0, clicks: 0 };
     dayCur.impressions += Number(row.impressions);
     dayCur.clicks += Number(row.clicks) + Number(row.cta_clicks);
@@ -98,8 +88,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Previous period totals
-  let prevTotals = { impressions: 0, clicks: 0, cta_clicks: 0 };
-  for (const row of prevStats ?? []) {
+  const prevTotals = { impressions: 0, clicks: 0, cta_clicks: 0 };
+  for (const row of prevResult?.data ?? []) {
     prevTotals.impressions += Number(row.impressions);
     prevTotals.clicks += Number(row.clicks);
     prevTotals.cta_clicks += Number(row.cta_clicks);
