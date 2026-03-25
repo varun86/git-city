@@ -319,8 +319,8 @@ export default function PixelsStoreClient({
         </div>
       )}
 
-      {/* Package grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Package grid — 1 col mobile, 2 col desktop */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {packages.map((pkg) => {
           const total = pkg.pixels + pkg.bonus_pixels;
           const isHighlight = pkg.id === highlightId;
@@ -335,68 +335,69 @@ export default function PixelsStoreClient({
             <div
               key={pkg.id}
               className={[
-                "relative flex flex-col border-[3px] p-5 transition-all",
+                "relative border-[3px] p-6 sm:p-8 transition-all",
                 isHighlight
-                  ? "border-lime bg-lime/5 scale-[1.03]"
+                  ? "border-lime bg-lime/5"
                   : "border-border bg-bg-raised hover:border-border-light",
               ].join(" ")}
             >
+              {/* Badge */}
               {badge && (
                 <div
-                  className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 text-[11px] font-bold text-bg whitespace-nowrap"
+                  className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-bold text-bg whitespace-nowrap"
                   style={{ backgroundColor: badge.color }}
                 >
                   {badge.label}
                 </div>
               )}
 
-              <p className="text-sm text-muted text-center mt-1 mb-3">
-                {pkg.name}
-              </p>
+              {/* Top row: name + price */}
+              <div className="flex items-center justify-between mb-6 mt-1">
+                <p className="text-base text-muted">{pkg.name}</p>
+                <p className="text-base text-cream font-bold">
+                  ${(pkg.price_usd_cents / 100).toFixed(2)}
+                </p>
+              </div>
 
-              <p className="text-3xl sm:text-4xl text-cream font-bold text-center mb-1">
-                {total.toLocaleString()}
-              </p>
-              <p className="text-base text-lime/70 text-center mb-3">PX</p>
+              {/* Center: big PX number */}
+              <div className="text-center mb-6">
+                <p className="text-5xl sm:text-6xl text-cream font-bold leading-none">
+                  {total.toLocaleString()}
+                </p>
+                <p className="text-lg text-lime/60 mt-2">PX</p>
+              </div>
 
-              {pkg.bonus_pixels > 0 && (
-                <div className="text-center mb-4">
+              {/* Bonus (or empty space to keep alignment) */}
+              <div className="text-center mb-6 min-h-[30px] flex items-center justify-center">
+                {pkg.bonus_pixels > 0 && (
                   <span
-                    className="inline-block px-3 py-1 text-sm font-bold text-bg"
+                    className="inline-block px-4 py-1.5 text-sm font-bold text-bg"
                     style={{ backgroundColor: "#39d353" }}
                   >
                     +{pkg.bonus_pixels} BONUS ({bonusPercent}%)
                   </span>
-                </div>
-              )}
+                )}
+              </div>
 
-              <div className="flex-1" />
-
-              <p className="text-lg text-cream text-center font-bold mb-3">
-                ${(pkg.price_usd_cents / 100).toFixed(2)}
-              </p>
-
-              {/* Buy with Stripe (always available) */}
+              {/* Buy button */}
               <button
                 onClick={() => handleBuy(pkg.id, "stripe")}
                 disabled={!!buying || !isAuthenticated}
-                className="btn-press w-full py-3 text-sm font-bold text-bg disabled:opacity-40 transition-all cursor-pointer"
+                className="btn-press w-full py-3.5 text-sm font-bold text-bg disabled:opacity-40 transition-all cursor-pointer"
                 style={{
                   backgroundColor: "#c8e64a",
-                  boxShadow: isHighlight
-                    ? "2px 2px 0 0 #5a7a00"
-                    : "1px 1px 0 0 #5a7a00",
+                  boxShadow: "2px 2px 0 0 #5a7a00",
                 }}
               >
                 {isBuying ? "Processing..." : "Buy Now"}
               </button>
 
-              {/* PIX option (BRL) */}
+              {/* PIX option */}
               {pkg.price_brl_cents && (
                 <button
                   onClick={() => handleBuy(pkg.id, "abacatepay")}
                   disabled={!!buying || !isAuthenticated}
-                  className="w-full mt-2 py-2 text-xs text-muted border border-border hover:border-border-light hover:text-cream transition-colors disabled:opacity-40 cursor-pointer"
+                  className="w-full mt-3 py-2.5 text-xs text-muted border-2 border-border hover:border-border-light hover:text-cream transition-colors disabled:opacity-40 cursor-pointer"
                 >
                   {isBuying
                     ? "..."
