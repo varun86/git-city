@@ -16,6 +16,7 @@ import {
 } from "@/lib/jobs/constants";
 import PortfolioProjects from "./PortfolioProjects";
 import PortfolioExperiences from "./PortfolioExperiences";
+import CareerProfileTracker from "./CareerProfileTracker";
 import type {
   PortfolioProject,
   PortfolioExperience,
@@ -120,6 +121,7 @@ export default async function PortfolioPage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-bg font-pixel uppercase text-warm">
+      <CareerProfileTracker targetLogin={dev.github_login} isOwn={isOwner} />
       <div className="mx-auto max-w-[1400px] px-4 py-8 sm:py-12">
 
         <Link href="/" className="mb-6 inline-block text-sm text-muted transition-colors hover:text-cream sm:mb-8">

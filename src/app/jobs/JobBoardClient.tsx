@@ -5,6 +5,14 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { JobListing } from "@/lib/jobs/types";
 import {
+  trackJobsPageView,
+  trackJobsSearch,
+  trackJobsSortChanged,
+  trackJobCardClicked,
+  trackJobAlertSubscribed,
+  trackCareerProfileCtaClicked,
+} from "@/lib/himetrica";
+import {
   SENIORITY_LABELS,
   ROLE_TYPE_LABELS,
   CONTRACT_LABELS,
@@ -173,6 +181,20 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
+  const trackedPageView = useRef(false);
+
+  // Track page view once
+  useEffect(() => {
+    if (!trackedPageView.current) {
+      trackedPageView.current = true;
+      trackJobsPageView({
+        has_filters: filters.hasFilters,
+        filter_count: filters.filterCount,
+        source: initialFilters?.stack ?? pageTitle ?? undefined,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -199,6 +221,7 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
       const data: JobsResponse = await res.json();
       setListings(data.listings);
       setTotal(data.total);
+      if (debouncedQ) trackJobsSearch(debouncedQ, data.total);
     } catch { setError(true); }
     setLoading(false);
   }, [debouncedQ, filters.roles, filters.seniorities, filters.contracts, filters.location, filters.salaryMin, filters.stack, filters.sort, filters.page]);
@@ -362,8 +385,8 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
             {loading ? "Loading..." : `Showing ${listings.length} of ${total}`}
           </p>
           <div className="flex gap-1">
-            <SortChip active={filters.sort === "recent"} onClick={() => filters.setSort("recent")}>Newest</SortChip>
-            <SortChip active={filters.sort === "salary"} onClick={() => filters.setSort("salary")}>Top Salary</SortChip>
+            <SortChip active={filters.sort === "recent"} onClick={() => { filters.setSort("recent"); trackJobsSortChanged("recent"); }}>Newest</SortChip>
+            <SortChip active={filters.sort === "salary"} onClick={() => { filters.setSort("salary"); trackJobsSortChanged("salary"); }}>Top Salary</SortChip>
           </div>
         </div>
 
@@ -394,7 +417,7 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
                     ) : (
                       <>
                         <p className="text-xs text-muted normal-case mb-4">Set up your profile to apply instantly.</p>
-                        <Link href="/hire/edit" className="btn-press inline-block bg-lime px-6 py-3 text-xs text-bg" style={{ boxShadow: "3px 3px 0 0 #5a7a00" }}>
+                        <Link href="/hire/edit" onClick={() => trackCareerProfileCtaClicked("jobs_empty")} className="btn-press inline-block bg-lime px-6 py-3 text-xs text-bg" style={{ boxShadow: "3px 3px 0 0 #5a7a00" }}>
                           Create Career Profile
                         </Link>
                       </>
@@ -405,8 +428,8 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              {listings.map((job) => (
-                <JobCard key={job.id} job={job} />
+              {listings.map((job, i) => (
+                <JobCard key={job.id} job={job} position={i} />
               ))}
             </div>
           )}
@@ -445,7 +468,7 @@ export default function JobBoardClient({ username, hasProfile, pageTitle, pageDe
 
 /* ─── Job Card ─── */
 
-function JobCard({ job }: { job: JobListing }) {
+function JobCard({ job, position }: { job: JobListing; position: number }) {
   const companyName = job.company?.name ?? "Company";
   const isPremium = job.tier === "premium";
   const isFeatured = job.tier === "featured";
@@ -469,7 +492,7 @@ function JobCard({ job }: { job: JobListing }) {
   }
 
   return (
-    <Link href={`/jobs/${job.id}`} className={`${wrapClass} p-6 block sm:pointer-events-none`} style={wrapStyle}>
+    <Link href={`/jobs/${job.id}`} onClick={() => trackJobCardClicked(job.id, position)} className={`${wrapClass} p-6 block sm:pointer-events-none`} style={wrapStyle}>
       {/* Company + badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -593,6 +616,7 @@ function InlineAlertSignup() {
       });
       if (!res.ok) throw new Error();
       setStatus("done");
+      trackJobAlertSubscribed("inline", false);
     } catch {
       setStatus("error");
     }
@@ -652,6 +676,7 @@ function JobAlertSignup() {
       });
       if (!res.ok) throw new Error();
       setStatus("done");
+      trackJobAlertSubscribed("footer", stack.trim().length > 0);
     } catch {
       setStatus("error");
     }

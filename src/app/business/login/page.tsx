@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { trackBusinessLoginStarted, trackBusinessLoginEmailSent } from "@/lib/himetrica";
 
 export default function BusinessLoginPage() {
   return (
@@ -37,6 +38,7 @@ function BusinessLoginInner() {
 
     setLoading(true);
     setError("");
+    trackBusinessLoginStarted();
 
     try {
       const res = await fetch("/api/ads/auth/send-magic-link", {
@@ -53,6 +55,7 @@ function BusinessLoginInner() {
       }
 
       setSent(true);
+      trackBusinessLoginEmailSent();
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);

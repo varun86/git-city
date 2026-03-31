@@ -179,3 +179,135 @@ export function trackLandmarkCardViewed(slug: string) {
 export function trackLandmarkCtaClicked(slug: string, url: string) {
   hm()?.track("landmark_cta_clicked", { slug, url });
 }
+
+// ─── Jobs: Seeker Funnel ───────────────────────────────────
+
+export function trackJobsPageView(props: { has_filters: boolean; filter_count: number; source?: string }) {
+  hm()?.track("jobs_page_view", props);
+}
+
+export function trackJobsSearch(query: string, results_count: number) {
+  hm()?.track("jobs_search", { query, results_count });
+}
+
+export function trackJobsFilterApplied(filter_type: string, value: string) {
+  hm()?.track("jobs_filter_applied", { filter_type, value });
+}
+
+export function trackJobsSortChanged(sort: string) {
+  hm()?.track("jobs_sort_changed", { sort });
+}
+
+export function trackJobCardClicked(job_id: string, position: number) {
+  hm()?.track("job_card_clicked", { job_id, position });
+}
+
+export function trackJobDetailView(props: { job_id: string; company?: string; role?: string; seniority?: string; has_salary: boolean }) {
+  hm()?.track("job_detail_view", props);
+}
+
+export function trackJobApplyClicked(job_id: string, has_profile: boolean) {
+  hm()?.track("job_apply_clicked", { job_id, has_profile });
+}
+
+export function trackJobApplySigninPrompted(job_id: string) {
+  hm()?.track("job_apply_signin_prompted", { job_id });
+}
+
+export function trackJobApplyCompleted(job_id: string, company: string) {
+  hm()?.track("job_apply_completed", { job_id, company });
+}
+
+export function trackJobReportSubmitted(job_id: string, reason: string) {
+  hm()?.track("job_report_submitted", { job_id, reason });
+}
+
+// ─── Jobs: Alerts ──────────────────────────────────────────
+
+export function trackJobAlertSubscribed(source: "inline" | "footer", has_stack: boolean) {
+  hm()?.track("job_alert_subscribed", { source, has_stack });
+}
+
+// ─── Jobs: Career Profile ──────────────────────────────────
+
+export function trackCareerProfileCtaClicked(source: string) {
+  hm()?.track("career_profile_cta_clicked", { source });
+}
+
+export function trackCareerProfileCreated(props: { skills_count: number; has_salary: boolean; open_to_work: boolean }) {
+  hm()?.track("career_profile_created", props);
+}
+
+export function trackCareerProfileUpdated() {
+  hm()?.track("career_profile_updated");
+}
+
+export function trackCareerProfileDeleted() {
+  hm()?.track("career_profile_deleted");
+}
+
+export function trackCareerProfileViewed(target_login: string, is_own: boolean) {
+  hm()?.track("career_profile_viewed", { target_login, is_own });
+}
+
+// ─── Jobs: Company / Recruiter Funnel ──────────────────────
+
+export function trackForCompaniesPageView() {
+  hm()?.track("for_companies_page_view");
+}
+
+export function trackForCompaniesCtaClicked(cta: string) {
+  hm()?.track("for_companies_cta_clicked", { cta });
+}
+
+export function trackBusinessLoginStarted() {
+  hm()?.track("business_login_started");
+}
+
+export function trackBusinessLoginEmailSent() {
+  hm()?.track("business_login_email_sent");
+}
+
+export function trackCompanyProfileCreated(has_github_org: boolean) {
+  hm()?.track("company_profile_created", { has_github_org });
+}
+
+export function trackJobPostStarted(has_draft: boolean) {
+  hm()?.track("job_post_started", { has_draft });
+}
+
+export function trackJobPostStepCompleted(step: number) {
+  hm()?.track("job_post_step_completed", { step });
+}
+
+export function trackJobPostSubmitted(props: { role: string; seniority: string; tier: string; has_salary: boolean }) {
+  hm()?.track("job_post_submitted", props);
+}
+
+export function trackJobCheckoutStarted(tier: string, listing_id: string) {
+  hm()?.track("job_checkout_started", { tier, listing_id });
+}
+
+// ─── Jobs: Dashboard ───────────────────────────────────────
+
+export function trackJobDashboardView(listings_count: number, active_count: number) {
+  hm()?.track("job_dashboard_view", { listings_count, active_count });
+}
+
+export function trackJobListingAction(action: string, listing_id: string) {
+  hm()?.track("job_listing_action", { action, listing_id });
+}
+
+export function trackJobCandidateHired(listing_id: string) {
+  hm()?.track("job_candidate_hired", { listing_id });
+}
+
+export function trackJobCandidatesExported(listing_id: string, count: number) {
+  hm()?.track("job_candidates_exported", { listing_id, count });
+}
+
+// ─── Jobs: My Applications ────────────────────────────────
+
+export function trackMyApplicationsView(total: number, active: number, hired: number) {
+  hm()?.track("my_applications_view", { total, active, hired });
+}

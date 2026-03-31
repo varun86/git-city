@@ -5,6 +5,10 @@ import Link from "next/link";
 import { BADGE_INFO } from "@/lib/jobs/quality-score";
 import type { CandidateBadge, CandidateWithScore } from "@/lib/jobs/types";
 import { SENIORITY_LABELS } from "@/lib/jobs/constants";
+import {
+  trackJobCandidateHired,
+  trackJobCandidatesExported,
+} from "@/lib/himetrica";
 
 interface Funnel {
   views: number;
@@ -63,6 +67,7 @@ export default function CandidatesClient({ listingId }: { listingId: string }) {
 
   async function handleStatusChange(devId: number, status: "applied" | "hired") {
     setUpdating(devId);
+    if (status === "hired") trackJobCandidateHired(listingId);
     const res = await fetch(`/api/jobs/${listingId}/candidates/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -83,6 +88,7 @@ export default function CandidatesClient({ listingId }: { listingId: string }) {
   }
 
   async function handleExport() {
+    trackJobCandidatesExported(listingId, candidates?.candidates.length ?? 0);
     window.open(`/api/jobs/${listingId}/candidates/export`, "_blank");
   }
 

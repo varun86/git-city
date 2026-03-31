@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import ROICalculator from "@/components/jobs/ROICalculator";
+import { ForCompaniesTracker, ForCompaniesCtaLink } from "./tracking";
 
 export const revalidate = 300;
 
@@ -100,6 +101,7 @@ export default async function ForCompaniesPage() {
 
   return (
     <main className="min-h-screen bg-bg font-pixel uppercase text-warm">
+      <ForCompaniesTracker />
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">
 
         {/* Nav */}
@@ -128,13 +130,14 @@ export default async function ForCompaniesPage() {
             Stop guessing from resumes. Every developer here has a GitHub-verified profile with real contributions, real code, and real activity.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
+            <ForCompaniesCtaLink
               href="/business/login?redirect=/jobs/dashboard/new"
+              cta="hero"
               className="btn-press inline-block bg-lime px-8 py-4 text-sm text-bg"
               style={{ boxShadow: "4px 4px 0 0 #5a7a00" }}
             >
               Post Your First Job Free
-            </Link>
+            </ForCompaniesCtaLink>
             <Link
               href="/jobs"
               className="btn-press inline-block border-[3px] border-border px-8 py-4 text-sm text-cream transition-colors hover:border-border-light"
@@ -271,13 +274,14 @@ export default async function ForCompaniesPage() {
           ) : (
             <p className="mt-4 text-sm text-red-400">All founding spots have been claimed</p>
           )}
-          <Link
+          <ForCompaniesCtaLink
             href="/business/login?redirect=/jobs/dashboard/new"
+            cta="founding"
             className="btn-press inline-block mt-6 py-4 px-8 text-sm text-bg"
             style={{ backgroundColor: "#fbbf24", boxShadow: "4px 4px 0 0 #b8860b" }}
           >
             Claim Your Spot
-          </Link>
+          </ForCompaniesCtaLink>
           <p className="mt-3 text-xs text-dim normal-case">No credit card required for your first listing</p>
         </div>
 

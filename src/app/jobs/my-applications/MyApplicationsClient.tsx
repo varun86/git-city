@@ -7,6 +7,7 @@ import {
   LOCATION_TYPE_LABELS,
   SALARY_PERIOD_LABELS,
 } from "@/lib/jobs/constants";
+import { trackMyApplicationsView } from "@/lib/himetrica";
 
 interface Company {
   name: string;
@@ -112,7 +113,13 @@ export default function MyApplicationsClient() {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((d) => setApplications(d.applications))
+      .then((d) => {
+        setApplications(d.applications);
+        const apps: Application[] = d.applications;
+        const hired = apps.filter((a) => a.status === "hired").length;
+        const active = apps.filter((a) => a.status !== "hired" && a.listing.status === "active").length;
+        trackMyApplicationsView(apps.length, active, hired);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);

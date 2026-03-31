@@ -4,6 +4,11 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import type { CareerProfile, JobSeniority, JobContract } from "@/lib/jobs/types";
 import { SENIORITY_LABELS, CONTRACT_LABELS } from "@/lib/jobs/constants";
+import {
+  trackCareerProfileCreated,
+  trackCareerProfileUpdated,
+  trackCareerProfileDeleted,
+} from "@/lib/himetrica";
 
 const SENIORITY_OPTIONS: JobSeniority[] = ["junior", "mid", "senior", "staff", "lead"];
 const CONTRACT_OPTIONS: JobContract[] = ["clt", "pj", "contract"];
@@ -255,6 +260,15 @@ export default function CareerProfileForm() {
       });
 
       if (res.ok) {
+        if (hasExisting) {
+          trackCareerProfileUpdated();
+        } else {
+          trackCareerProfileCreated({
+            skills_count: form.skillTags.length,
+            has_salary: !!form.salaryMin,
+            open_to_work: form.openToWork,
+          });
+        }
         setSaved(true);
         setHasExisting(true);
         // Fetch username if we don't have it yet
@@ -289,6 +303,7 @@ export default function CareerProfileForm() {
     setDeleting(true);
     try {
       await fetch("/api/career-profile", { method: "DELETE" });
+      trackCareerProfileDeleted();
       if (username) window.location.href = `/hire/${username}`;
     } finally {
       setDeleting(false);

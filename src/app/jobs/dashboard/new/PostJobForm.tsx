@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import Link from "next/link";
+import {
+  trackJobPostStarted,
+  trackJobPostStepCompleted,
+  trackJobPostSubmitted,
+} from "@/lib/himetrica";
 
 const RichTextEditor = lazy(() => import("@/components/jobs/RichTextEditor"));
 import {
@@ -164,11 +169,13 @@ export default function PostJobForm() {
   const techInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let draft = false;
     try {
       const saved = localStorage.getItem(LS_KEY);
-      if (saved) { setForm({ ...DEFAULT_FORM, ...JSON.parse(saved) }); setHasDraft(true); }
+      if (saved) { setForm({ ...DEFAULT_FORM, ...JSON.parse(saved) }); setHasDraft(true); draft = true; }
     } catch { /* */ }
     setLoaded(true);
+    trackJobPostStarted(draft);
   }, []);
 
   useEffect(() => {
@@ -235,6 +242,7 @@ export default function PostJobForm() {
     const errs = validateStep(step);
     if (Object.keys(errs).length > 0) { setFieldErrors(errs); return; }
     setFieldErrors({});
+    trackJobPostStepCompleted(step);
     setStep((s) => Math.min(5, s + 1));
     window.scrollTo({ top: 0 });
   }
@@ -308,6 +316,12 @@ export default function PostJobForm() {
       }
 
       localStorage.removeItem(LS_KEY);
+      trackJobPostSubmitted({
+        role: form.roleType,
+        seniority: form.seniority,
+        tier: "free",
+        has_salary: parseInt(form.salaryMin) > 0,
+      });
       const { url } = await checkoutRes.json();
       window.location.href = url;
     } catch {

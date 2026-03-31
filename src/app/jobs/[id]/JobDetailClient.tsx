@@ -5,6 +5,14 @@ import Link from "next/link";
 import type { JobListing } from "@/lib/jobs/types";
 import DOMPurify from "isomorphic-dompurify";
 import {
+  trackJobDetailView,
+  trackJobApplyClicked,
+  trackJobApplySigninPrompted,
+  trackJobApplyCompleted,
+  trackJobReportSubmitted,
+  trackCareerProfileCtaClicked,
+} from "@/lib/himetrica";
+import {
   SENIORITY_LABELS,
   ROLE_TYPE_LABELS,
   CONTRACT_LABELS,
@@ -62,7 +70,18 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
   useEffect(() => {
     fetch(`/api/jobs/${listingId}`)
       .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
-      .then((d) => { setData(d); setApplied(d.hasApplied); })
+      .then((d: JobDetailData) => {
+        setData(d);
+        setApplied(d.hasApplied);
+        trackJobDetailView({
+          job_id: listingId,
+          company: d.listing.company?.name,
+          role: d.listing.role_type,
+          seniority: d.listing.seniority,
+          has_salary: d.listing.salary_min > 0,
+        });
+        if (d.isAuthenticated === false) trackJobApplySigninPrompted(listingId);
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, [listingId]);
@@ -71,11 +90,13 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
     if (applying) return;
     setApplying(true);
     setApplyError(false);
+    trackJobApplyClicked(listingId, data?.hasCareerProfile ?? false);
     try {
       const res = await fetch(`/api/jobs/${listingId}/apply`, { method: "POST" });
       if (!res.ok) throw new Error();
       const { apply_url } = await res.json();
       setApplied(true);
+      trackJobApplyCompleted(listingId, data?.listing.company?.name ?? "");
       window.open(apply_url, "_blank");
     } catch { setApplyError(true); }
     setApplying(false);
@@ -92,6 +113,7 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
       });
       if (!res.ok) return;
     } catch { return; }
+    trackJobReportSubmitted(listingId, reportReason);
     setReported(true);
     setShowReport(false);
   };
@@ -291,6 +313,7 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
                   {data.isAuthenticated && !applied && !data.hasCareerProfile && (
                     <Link
                       href={`/hire/edit?returnTo=/jobs/${job.id}`}
+                      onClick={() => trackCareerProfileCtaClicked("job_detail")}
                       className="block w-full border-[3px] border-border py-2.5 text-xs text-center text-muted transition-colors hover:border-border-light hover:text-cream normal-case"
                     >
                       Complete your career profile to stand out

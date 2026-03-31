@@ -4,6 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { JobCompanyProfile, JobListing } from "@/lib/jobs/types";
 import { SENIORITY_LABELS, ROLE_TYPE_LABELS, LOCATION_TYPE_LABELS, SALARY_PERIOD_LABELS } from "@/lib/jobs/constants";
+import {
+  trackJobDashboardView,
+  trackJobListingAction,
+  trackCompanyProfileCreated,
+  trackJobCheckoutStarted,
+} from "@/lib/himetrica";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "#8c8c9c",
@@ -73,7 +79,9 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
         const listRes = await fetch("/api/jobs/dashboard");
         if (!listRes.ok) throw new Error();
         const data = await listRes.json();
-        setListings(data.listings ?? []);
+        const list = data.listings ?? [];
+        setListings(list);
+        trackJobDashboardView(list.length, list.filter((l: JobListing) => l.status === "active").length);
       }
     } catch { setError(true); }
     setLoading(false);
@@ -91,6 +99,7 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
       const { company: comp } = await res.json();
       setCompany(comp);
       setSetupMode(false);
+      trackCompanyProfileCreated(!!githubOrg);
     } else {
       const d = await res.json();
       setSetupError(d.error ?? "Failed to create profile");
@@ -110,6 +119,8 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
     if (action === "fill" && !confirm("Mark as filled? This removes the listing from the job board.")) return;
     if (action === "delete" && !confirm("Delete this listing? This cannot be undone.")) return;
 
+    trackJobListingAction(action, listingId);
+
     if (action === "delete") {
       await fetch(`/api/jobs/${listingId}/manage`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete" }) });
       setListings((prev) => prev.filter((l) => l.id !== listingId));
@@ -118,7 +129,9 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
 
     if (action === "checkout") {
       const listing = listings.find((l) => l.id === listingId);
-      const res = await fetch("/api/jobs/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listing_id: listingId, tier: listing?.tier ?? "standard" }) });
+      const tier = listing?.tier ?? "standard";
+      trackJobCheckoutStarted(tier, listingId);
+      const res = await fetch("/api/jobs/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listing_id: listingId, tier }) });
       if (res.ok) { const { url } = await res.json(); window.location.href = url; }
       return;
     }
