@@ -73,20 +73,59 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
+      // Enrich with profile data for richer emails
+      const logins = applications.map((a) => a.developer_login);
+      const { data: devs } = await admin
+        .from("developers")
+        .select("id, github_login")
+        .in("github_login", logins);
+      const devMap = new Map((devs ?? []).map((d) => [d.github_login, d.id]));
+      const devIds = (devs ?? []).map((d) => d.id);
+      const { data: profiles } = devIds.length > 0
+        ? await admin.from("career_profiles").select("id, first_name, last_name, email, phone, skills, seniority, salary_min, salary_max, salary_currency, bio, resume_url, link_linkedin").in("id", devIds)
+        : { data: [] };
+      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+
       // Send single or batch email
       if (applications.length === 1) {
         const app = applications[0];
+        const devId = devMap.get(app.developer_login);
+        const profile = devId ? profileMap.get(devId) : null;
         await sendJobApplicationReceivedEmail(
           advertiser.email,
           listing.title,
           listingId,
-          { developerLogin: app.developer_login, hasProfile: app.has_profile },
+          {
+            developerLogin: app.developer_login,
+            hasProfile: app.has_profile,
+            firstName: profile?.first_name,
+            lastName: profile?.last_name,
+            email: profile?.email,
+            phone: profile?.phone,
+            skills: profile?.skills,
+            seniority: profile?.seniority,
+            salaryMin: profile?.salary_min,
+            salaryMax: profile?.salary_max,
+            salaryCurrency: profile?.salary_currency,
+            bio: profile?.bio,
+            resumeUrl: profile?.resume_url,
+            linkedinUrl: profile?.link_linkedin,
+          },
         );
       } else {
         await sendJobApplicationsBatchEmail(
           advertiser.email,
           listing.title,
-          applications.map((a) => ({ login: a.developer_login, hasProfile: a.has_profile })),
+          applications.map((a) => {
+            const devId = devMap.get(a.developer_login);
+            const profile = devId ? profileMap.get(devId) : null;
+            return {
+              login: a.developer_login,
+              hasProfile: a.has_profile,
+              firstName: profile?.first_name,
+              lastName: profile?.last_name,
+            };
+          }),
         );
       }
 

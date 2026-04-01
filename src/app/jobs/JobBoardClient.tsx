@@ -537,7 +537,7 @@ function JobCard({ job, position }: { job: JobListing; position: number }) {
             <div className="mt-1 flex items-center gap-2 text-[9px] text-dim">
               {job.badge_response_guaranteed && <span>Response OK</span>}
               {job.badge_no_ai_screening && <span>No AI</span>}
-              {job.apply_count > 0 && <span>{job.apply_count} applied</span>}
+              {!job.apply_url && job.apply_count > 0 && <span>{job.apply_count} applied</span>}
             </div>
           )}
         </div>

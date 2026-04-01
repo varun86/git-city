@@ -47,6 +47,10 @@ interface LinkItem {
 }
 
 interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
   bio: string;
   skillTags: string[];
   seniority: JobSeniority;
@@ -64,6 +68,7 @@ interface FormData {
 }
 
 const DEFAULT_FORM: FormData = {
+  firstName: "", lastName: "", email: "", phone: "",
   bio: "", skillTags: [], seniority: "mid", yearsExperience: "",
   contractTypes: [], webType: "both", salaryCurrency: "USD",
   salaryMin: "", salaryMax: "", salaryVisible: false,
@@ -152,6 +157,10 @@ export default function CareerProfileForm() {
           }
 
           setForm({
+            firstName: p.first_name ?? "",
+            lastName: p.last_name ?? "",
+            email: p.email ?? "",
+            phone: p.phone ?? "",
             bio: p.bio, skillTags: p.skills, seniority: p.seniority,
             yearsExperience: p.years_experience?.toString() ?? "",
             contractTypes: p.contract_type, webType: p.web_type,
@@ -233,6 +242,10 @@ export default function CareerProfileForm() {
     }
 
     const body = {
+      first_name: form.firstName.trim() || null,
+      last_name: form.lastName.trim() || null,
+      email: form.email.trim() || null,
+      phone: form.phone.trim() || null,
       bio: form.bio.trim().slice(0, MAX_BIO),
       skills: form.skillTags.slice(0, MAX_SKILLS),
       seniority: form.seniority,
@@ -381,6 +394,38 @@ export default function CareerProfileForm() {
           {/* ─── Status ─── */}
           <div className="border-[3px] border-border bg-bg-raised p-5">
             <Toggle checked={form.openToWork} onChange={(v) => update({ openToWork: v })} label="Open to work" sublabel="Visible on your profile" />
+          </div>
+
+          {/* ─── Contact (required for native apply) ─── */}
+          <div className="border-[3px] border-border bg-bg-raised p-5 sm:p-6 space-y-5">
+            <h2 className="text-xs text-muted/50 tracking-[0.15em]">Contact Info</h2>
+            <p className="text-[10px] text-dim normal-case -mt-3">Required to apply to jobs within Git City. Only shared with companies you apply to.</p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className={labelClass}>First Name *</label>
+                <input id="firstName" value={form.firstName} onChange={(e) => update({ firstName: e.target.value })} placeholder="John" maxLength={100} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="lastName" className={labelClass}>Last Name *</label>
+                <input id="lastName" value={form.lastName} onChange={(e) => update({ lastName: e.target.value })} placeholder="Doe" maxLength={100} className={inputClass} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="email" className={labelClass}>Email *</label>
+                <input id="email" type="email" value={form.email} onChange={(e) => update({ email: e.target.value })} placeholder="john@example.com" maxLength={200} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="phone" className={labelClass}>Phone</label>
+                <input id="phone" type="tel" value={form.phone} onChange={(e) => update({ phone: e.target.value })} placeholder="+1 555 000 0000" maxLength={20} className={inputClass} />
+              </div>
+            </div>
+
+            {(!form.firstName || !form.lastName || !form.email) && (
+              <p className="text-[10px] text-yellow-500/70 normal-case">Fill in name and email to be able to apply to jobs natively on Git City.</p>
+            )}
           </div>
 
           {/* ─── About ─── */}

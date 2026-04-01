@@ -9,6 +9,7 @@ import {
   trackJobApplyClicked,
   trackJobApplySigninPrompted,
   trackJobApplyCompleted,
+  trackJobExternalClicked,
   trackJobReportSubmitted,
   trackCareerProfileCtaClicked,
 } from "@/lib/himetrica";
@@ -32,6 +33,8 @@ interface JobDetailData {
   listing: JobListing;
   hasApplied: boolean;
   hasCareerProfile: boolean;
+  profileReadyToApply: boolean;
+  hasExternalUrl: boolean;
   isAuthenticated: boolean;
   isPreview?: boolean;
 }
@@ -79,6 +82,7 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
           role: d.listing.role_type,
           seniority: d.listing.seniority,
           has_salary: d.listing.salary_min > 0,
+          is_native: !d.hasExternalUrl,
         });
         if (d.isAuthenticated === false) trackJobApplySigninPrompted(listingId);
       })
@@ -93,11 +97,31 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
     trackJobApplyClicked(listingId, data?.hasCareerProfile ?? false);
     try {
       const res = await fetch(`/api/jobs/${listingId}/apply`, { method: "POST" });
-      if (!res.ok) throw new Error();
-      const { apply_url } = await res.json();
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        if (body?.missing_fields) {
+          // Redirect to complete profile
+          window.location.href = `/hire/edit?returnTo=/jobs/${listingId}`;
+          return;
+        }
+        throw new Error();
+      }
       setApplied(true);
       trackJobApplyCompleted(listingId, data?.listing.company?.name ?? "");
-      window.open(apply_url, "_blank");
+    } catch { setApplyError(true); }
+    setApplying(false);
+  };
+
+  const handleExternalClick = async () => {
+    if (applying) return;
+    setApplying(true);
+    setApplyError(false);
+    trackJobExternalClicked(listingId, data?.listing.company?.name ?? "");
+    try {
+      const res = await fetch(`/api/jobs/${listingId}/click`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      const { click_url } = await res.json();
+      window.open(click_url, "_blank");
     } catch { setApplyError(true); }
     setApplying(false);
   };
@@ -268,7 +292,7 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
                 </div>
               )}
 
-              {/* Apply actions */}
+              {/* Apply / Visit actions */}
               {!data.isPreview && (
                 <div className="mt-5 space-y-2">
                   {!data.isAuthenticated ? (
@@ -278,21 +302,30 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
                         className="btn-press block w-full py-3.5 text-xs text-bg text-center"
                         style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
                       >
-                        Sign in to Apply
+                        {data.hasExternalUrl ? "Sign in to Visit" : "Sign in to Apply"}
                       </a>
-                      <p className="text-[10px] text-dim normal-case text-center">Sign in with GitHub to apply and track your applications</p>
+                      <p className="text-[10px] text-dim normal-case text-center">
+                        {data.hasExternalUrl
+                          ? "Sign in with GitHub to visit the application page"
+                          : "Sign in with GitHub to apply and track your applications"}
+                      </p>
                     </>
+                  ) : data.hasExternalUrl ? (
+                    /* ── External listing: "Visit" button ── */
+                    <button
+                      onClick={handleExternalClick}
+                      disabled={applying}
+                      className="btn-press w-full py-3.5 text-xs text-bg disabled:opacity-50"
+                      style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
+                    >
+                      {applying ? "Opening..." : "Visit Job Page \u2197"}
+                    </button>
                   ) : applied ? (
+                    /* ── Native listing: already applied ── */
                     <>
                       <div className="w-full border-[3px] py-3.5 text-xs text-center" style={{ borderColor: `${accent}40`, color: accent }}>
                         You applied to this job
                       </div>
-                      <button
-                        onClick={handleApply}
-                        className="btn-press w-full cursor-pointer border-[3px] border-border py-2.5 text-xs text-muted transition-colors hover:border-border-light hover:text-cream"
-                      >
-                        Open application page again
-                      </button>
                       <a
                         href="/jobs/my-applications"
                         className="block w-full py-2 text-center text-xs text-muted/40 transition-colors hover:text-muted normal-case"
@@ -300,24 +333,41 @@ export default function JobDetailClient({ listingId }: { listingId: string }) {
                         View all my applications
                       </a>
                     </>
-                  ) : (
-                    <button
-                      onClick={handleApply}
-                      disabled={applying}
-                      className="btn-press w-full py-3.5 text-xs text-bg disabled:opacity-50"
-                      style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
-                    >
-                      {applying ? "Applying..." : "Apply Now"}
-                    </button>
-                  )}
-                  {data.isAuthenticated && !applied && !data.hasCareerProfile && (
+                  ) : !data.hasCareerProfile ? (
+                    /* ── Native listing: no career profile ── */
                     <Link
                       href={`/hire/edit?returnTo=/jobs/${job.id}`}
                       onClick={() => trackCareerProfileCtaClicked("job_detail")}
-                      className="block w-full border-[3px] border-border py-2.5 text-xs text-center text-muted transition-colors hover:border-border-light hover:text-cream normal-case"
+                      className="btn-press block w-full py-3.5 text-xs text-bg text-center"
+                      style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
                     >
-                      Complete your career profile to stand out
+                      Create Career Profile to Apply
                     </Link>
+                  ) : !data.profileReadyToApply ? (
+                    /* ── Native listing: profile incomplete ── */
+                    <Link
+                      href={`/hire/edit?returnTo=/jobs/${job.id}`}
+                      onClick={() => trackCareerProfileCtaClicked("job_detail")}
+                      className="btn-press block w-full py-3.5 text-xs text-bg text-center"
+                      style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
+                    >
+                      Complete Profile to Apply
+                    </Link>
+                  ) : (
+                    /* ── Native listing: ready to apply ── */
+                    <>
+                      <button
+                        onClick={handleApply}
+                        disabled={applying}
+                        className="btn-press w-full py-3.5 text-xs text-bg disabled:opacity-50"
+                        style={{ backgroundColor: accent, boxShadow: `3px 3px 0 0 ${shadow}` }}
+                      >
+                        {applying ? "Applying..." : "Apply Now"}
+                      </button>
+                      <p className="text-[10px] text-dim normal-case text-center">
+                        Your Career Profile will be shared with {companyName}
+                      </p>
+                    </>
                   )}
                 </div>
               )}

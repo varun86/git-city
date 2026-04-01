@@ -67,6 +67,14 @@ function getLimitForPath(pathname: string): {
     return { limit: 1000, window: 60_000, group: "webhooks" };
   }
 
+  // Suffix-based limits for dynamic routes like /api/jobs/[id]/apply
+  if (pathname.endsWith("/apply")) {
+    return { limit: 5, window: 60_000, group: "/apply" };
+  }
+  if (pathname.endsWith("/click")) {
+    return { limit: 10, window: 60_000, group: "/click" };
+  }
+
   for (const [prefix, limit, window] of ROUTE_LIMITS) {
     if (pathname.startsWith(prefix)) {
       return { limit, window, group: prefix };

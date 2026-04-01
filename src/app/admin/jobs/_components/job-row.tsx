@@ -277,7 +277,11 @@ export function JobRow({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 border-t border-border/50 pt-4">
                 <div>
                   <p className="text-xs text-dim">Apply URL</p>
-                  <a href={job.apply_url} target="_blank" rel="noopener" className="mt-1 block text-xs text-lime hover:underline truncate">{job.apply_url.replace(/^https?:\/\/(www\.)?/, "")}</a>
+                  {job.apply_url ? (
+                    <a href={job.apply_url} target="_blank" rel="noopener" className="mt-1 block text-xs text-lime hover:underline truncate">{job.apply_url.replace(/^https?:\/\/(www\.)?/, "")}</a>
+                  ) : (
+                    <p className="mt-1 text-xs text-lime/70">Native (Git City)</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-dim">Company</p>

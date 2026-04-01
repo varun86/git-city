@@ -202,7 +202,7 @@ export function trackJobCardClicked(job_id: string, position: number) {
   hm()?.track("job_card_clicked", { job_id, position });
 }
 
-export function trackJobDetailView(props: { job_id: string; company?: string; role?: string; seniority?: string; has_salary: boolean }) {
+export function trackJobDetailView(props: { job_id: string; company?: string; role?: string; seniority?: string; has_salary: boolean; is_native?: boolean }) {
   hm()?.track("job_detail_view", props);
 }
 
@@ -216,6 +216,10 @@ export function trackJobApplySigninPrompted(job_id: string) {
 
 export function trackJobApplyCompleted(job_id: string, company: string) {
   hm()?.track("job_apply_completed", { job_id, company });
+}
+
+export function trackJobExternalClicked(job_id: string, company: string) {
+  hm()?.track("job_external_clicked", { job_id, company });
 }
 
 export function trackJobReportSubmitted(job_id: string, reason: string) {
@@ -280,7 +284,7 @@ export function trackJobPostStepCompleted(step: number) {
   hm()?.track("job_post_step_completed", { step });
 }
 
-export function trackJobPostSubmitted(props: { role: string; seniority: string; tier: string; has_salary: boolean }) {
+export function trackJobPostSubmitted(props: { role: string; seniority: string; tier: string; has_salary: boolean; is_native?: boolean }) {
   hm()?.track("job_post_submitted", props);
 }
 

@@ -25,7 +25,7 @@ export async function GET() {
   const [listingsRes] = await Promise.all([
     admin
       .from("job_listings")
-      .select("id, company_id, title, status, seniority, role_type, location_type, contract_type, web_type, view_count, apply_count, salary_min, salary_max, salary_currency, salary_period, expires_at, created_at, tier, rejection_reason")
+      .select("id, company_id, title, status, seniority, role_type, location_type, contract_type, web_type, apply_url, view_count, apply_count, click_count, salary_min, salary_max, salary_currency, salary_period, expires_at, created_at, tier, rejection_reason")
       .eq("company_id", company.id)
       .order("created_at", { ascending: false }),
     admin

@@ -281,12 +281,15 @@ function CandidateCard({ candidate: c, updating, onStatusChange }: {
         {/* Left: dev info */}
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
+            {c.profile?.first_name && c.profile?.last_name ? (
+              <span className="text-sm text-cream truncate">{c.profile.first_name} {c.profile.last_name}</span>
+            ) : null}
             <Link
               href={`/hire/${c.github_login}`}
               target="_blank"
-              className="text-sm text-cream transition-colors hover:text-lime truncate"
+              className={`text-sm transition-colors hover:text-lime truncate ${c.profile?.first_name ? "text-muted" : "text-cream"}`}
             >
-              {c.github_login}
+              @{c.github_login}
             </Link>
             {isHired && (
               <span className="shrink-0 border-[2px] border-[#4ade80]/40 px-2 py-0.5 text-xs text-[#4ade80]">
@@ -294,6 +297,16 @@ function CandidateCard({ candidate: c, updating, onStatusChange }: {
               </span>
             )}
           </div>
+
+          {/* Contact info (native applications only) */}
+          {c.profile?.email && (
+            <div className="mt-1 flex flex-wrap gap-3 text-xs text-dim normal-case">
+              <a href={`mailto:${c.profile.email}`} className="text-lime/70 hover:text-lime transition-colors">{c.profile.email}</a>
+              {c.profile.phone && <span>{c.profile.phone}</span>}
+              {c.profile.link_linkedin && <a href={c.profile.link_linkedin} target="_blank" rel="noopener" className="text-lime/70 hover:text-lime transition-colors">LinkedIn</a>}
+              {c.profile.resume_url && <a href={c.profile.resume_url} target="_blank" rel="noopener" className="text-lime/70 hover:text-lime transition-colors">Resume</a>}
+            </div>
+          )}
 
           {/* Stats row */}
           <div className="mt-1.5 flex flex-wrap gap-3 text-xs text-dim normal-case">

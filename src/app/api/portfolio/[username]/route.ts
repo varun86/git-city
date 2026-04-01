@@ -24,7 +24,7 @@ export async function GET(
   // 2. Parallel fetches
   const [profileRes, projectsRes, experiencesRes, achievementsRes] =
     await Promise.all([
-      admin.from("career_profiles").select("*").eq("id", dev.id).maybeSingle(),
+      admin.from("career_profiles").select("id, skills, seniority, years_experience, bio, web_type, contract_type, salary_min, salary_max, salary_currency, salary_visible, languages, timezone, link_portfolio, link_linkedin, link_website, open_to_work, created_at, updated_at").eq("id", dev.id).maybeSingle(),
       admin
         .from("portfolio_projects")
         .select("*")

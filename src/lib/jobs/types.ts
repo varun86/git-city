@@ -31,7 +31,7 @@ export interface JobListing {
   location_timezone: string | null;
   benefits: string[];
   how_to_apply: string | null;
-  apply_url: string;
+  apply_url: string | null;
   language: string;
   language_pt_br: string | null;
   badge_response_guaranteed: boolean;
@@ -47,6 +47,7 @@ export interface JobListing {
   updated_at: string;
   view_count: number;
   apply_count: number;
+  click_count: number;
   profile_count: number;
   // Joined
   company?: JobCompanyProfile;
@@ -76,6 +77,11 @@ export interface JobCompanyProfileAdmin extends JobCompanyProfile {
 
 export interface CareerProfile {
   id: number;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  phone: string | null;
+  resume_url: string | null;
   skills: string[];
   seniority: JobSeniority;
   years_experience: number | null;
@@ -97,12 +103,14 @@ export interface CareerProfile {
 }
 
 export type ApplicationStatus = "applied" | "hired";
+export type ApplicationType = "native" | "external_click";
 
 export interface JobApplication {
   id: string;
   listing_id: string;
   developer_id: number;
   has_profile: boolean;
+  type: ApplicationType;
   status: ApplicationStatus;
   status_changed_at: string | null;
   created_at: string;
@@ -135,11 +143,20 @@ export interface CandidateWithScore {
   status: ApplicationStatus;
   applied_at: string | undefined;
   profile: {
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone: string | null;
+    resume_url: string | null;
+    link_linkedin: string | null;
     seniority: string;
     years_experience: number | null;
     web_type: string;
     skills: string[];
     bio: string;
+    salary_min: number | null;
+    salary_max: number | null;
+    salary_currency: string;
   } | null;
   skill_match: number;
   skill_total: number;

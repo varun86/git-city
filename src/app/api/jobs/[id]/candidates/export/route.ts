@@ -33,12 +33,12 @@ export async function GET(
   // Get applications
   const { data: applications } = await admin
     .from("job_applications")
-    .select("developer_id, has_profile, status, created_at")
+    .select("developer_id, has_profile, type, status, created_at")
     .eq("listing_id", id)
     .order("created_at", { ascending: false });
 
   if (!applications || applications.length === 0) {
-    const csv = "github_username,contributions,stars,repos,streak,level,seniority,years_experience,skills,status,applied_at,quality_score,badges,profile_url\n";
+    const csv = "type,first_name,last_name,email,phone,github_username,contributions,stars,repos,streak,level,seniority,years_experience,skills,status,applied_at,quality_score,badges,profile_url\n";
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv",
@@ -56,7 +56,7 @@ export async function GET(
       .in("id", devIds),
     admin
       .from("career_profiles")
-      .select("id, seniority, years_experience, skills")
+      .select("id, first_name, last_name, email, phone, seniority, years_experience, skills")
       .in("id", devIds),
     admin
       .from("portfolio_projects")
@@ -82,11 +82,12 @@ export async function GET(
     return val;
   };
 
-  const header = "github_username,contributions,stars,repos,streak,level,seniority,years_experience,skills,status,applied_at,quality_score,badges,profile_url";
+  const header = "type,first_name,last_name,email,phone,github_username,contributions,stars,repos,streak,level,seniority,years_experience,skills,status,applied_at,quality_score,badges,profile_url";
 
   const rows = devs.map((dev) => {
     const app = applications.find((a) => a.developer_id === dev.id);
     const profile = profiles.find((p) => p.id === dev.id);
+    const isNative = app?.type === "native";
 
     const scoreInput = {
       contributions: dev.contributions_total ?? 0,
@@ -102,6 +103,11 @@ export async function GET(
     const badges = calculateBadges(scoreInput);
 
     return [
+      app?.type ?? "native",
+      isNative ? escapeCSV(profile?.first_name ?? "") : "",
+      isNative ? escapeCSV(profile?.last_name ?? "") : "",
+      isNative ? escapeCSV(profile?.email ?? "") : "",
+      isNative ? escapeCSV(profile?.phone ?? "") : "",
       dev.github_login,
       dev.contributions_total ?? 0,
       dev.total_stars ?? 0,

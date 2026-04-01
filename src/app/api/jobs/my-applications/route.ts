@@ -24,6 +24,7 @@ export async function GET() {
     .from("job_applications")
     .select("*, listing:job_listings(id, title, status, salary_min, salary_max, salary_currency, salary_period, seniority, role_type, location_type, contract_type, company:job_company_profiles(name, slug, website))")
     .eq("developer_id", dev.id)
+    .eq("type", "native")
     .order("created_at", { ascending: false });
 
   return NextResponse.json({ applications: applications ?? [] });

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { JobSeniority, JobWeb, JobContract } from "@/lib/jobs/types";
+import { isValidUrl } from "@/lib/jobs/validation";
 
 const VALID_SENIORITIES: JobSeniority[] = ["junior", "mid", "senior", "staff", "lead"];
 const VALID_WEB_TYPES: JobWeb[] = ["web2", "web3", "both"];
@@ -84,8 +85,23 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
 
+  // Validate contact fields
+  const firstName = typeof body.first_name === "string" ? body.first_name.trim().slice(0, 100) : null;
+  const lastName = typeof body.last_name === "string" ? body.last_name.trim().slice(0, 100) : null;
+  const email = typeof body.email === "string" ? body.email.trim().slice(0, 200) : null;
+  const phone = typeof body.phone === "string" ? body.phone.trim().slice(0, 20) : null;
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
   const profileData = {
     id: auth.developerId,
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    phone,
+    resume_url: typeof body.resume_url === "string" && isValidUrl(body.resume_url) ? body.resume_url : null,
     skills: skills.map((s: string) => s.toLowerCase().trim()),
     seniority,
     bio: bio.trim(),

@@ -28,7 +28,7 @@ export async function POST(
     return NextResponse.json({ error: "No developer profile" }, { status: 400 });
   }
 
-  // Get the listing with company info for notification
+  // Get the listing with company info
   const { data: listing } = await admin
     .from("job_listings")
     .select("id, apply_url, title, company_id, company:job_company_profiles!inner(name, advertiser_id)")
@@ -40,21 +40,42 @@ export async function POST(
     return NextResponse.json({ error: "Listing not found" }, { status: 404 });
   }
 
-  // Check if dev has career profile
+  // Native apply only — listings with external URL must use /click
+  if (listing.apply_url) {
+    return NextResponse.json({ error: "This listing uses external applications. Use /click instead." }, { status: 400 });
+  }
+
+  // Check career profile with required fields for native apply
   const { data: profile } = await admin
     .from("career_profiles")
-    .select("id")
+    .select("id, first_name, last_name, email")
     .eq("id", dev.id)
     .maybeSingle();
 
-  // Upsert application (returns data so we can check if it was an insert)
+  if (!profile) {
+    return NextResponse.json({ error: "Career profile required to apply" }, { status: 400 });
+  }
+
+  if (!profile.first_name || !profile.last_name || !profile.email) {
+    return NextResponse.json({
+      error: "Complete your career profile to apply (name and email required)",
+      missing_fields: [
+        ...(!profile.first_name ? ["first_name"] : []),
+        ...(!profile.last_name ? ["last_name"] : []),
+        ...(!profile.email ? ["email"] : []),
+      ],
+    }, { status: 400 });
+  }
+
+  // Upsert application
   const { data: appResult } = await admin
     .from("job_applications")
     .upsert(
       {
         listing_id: id,
         developer_id: dev.id,
-        has_profile: !!profile,
+        has_profile: true,
+        type: "native",
       },
       { onConflict: "listing_id,developer_id" },
     )
@@ -85,7 +106,7 @@ export async function POST(
       .insert({
         listing_id: id,
         developer_login: dev.github_login,
-        has_profile: !!profile,
+        has_profile: true,
       })
       .then(({ error: qErr }) => {
         if (qErr) console.error("[job-notify] Failed to queue application email:", qErr);
@@ -99,7 +120,7 @@ export async function POST(
       listing.title,
       compName,
       id,
-      !!profile,
+      true,
     );
   }
 
@@ -108,15 +129,16 @@ export async function POST(
     const { count } = await admin
       .from("job_applications")
       .select("*", { count: "exact", head: true })
-      .eq("developer_id", dev.id);
+      .eq("developer_id", dev.id)
+      .eq("type", "native");
 
-    // Nudge to complete profile after 3rd application without profile
-    if (!profile && count === 3) {
+    // Nudge to complete profile after 3rd application without full profile
+    if (count === 3) {
       sendJobProfileNudgeNotification(dev.id, dev.github_login, count);
     }
 
     if (count === 1) {
-      // First application - award XP + achievement
+      // First native application - award XP + achievement
       await Promise.all([
         admin.rpc("grant_xp", {
           p_developer_id: dev.id,
@@ -138,17 +160,5 @@ export async function POST(
     }
   }
 
-  // Build apply URL with UTMs — preserve existing params, don't overwrite
-  let applyUrlStr = listing.apply_url;
-  try {
-    const applyUrl = new URL(listing.apply_url);
-    if (!applyUrl.searchParams.has("utm_source")) applyUrl.searchParams.set("utm_source", "gitcity");
-    if (!applyUrl.searchParams.has("utm_medium")) applyUrl.searchParams.set("utm_medium", "jobs");
-    if (!applyUrl.searchParams.has("ref")) applyUrl.searchParams.set("ref", "gitcity");
-    applyUrlStr = applyUrl.toString();
-  } catch {
-    // If URL parsing fails, use the raw URL
-  }
-
-  return NextResponse.json({ apply_url: applyUrlStr });
+  return NextResponse.json({ applied: true });
 }

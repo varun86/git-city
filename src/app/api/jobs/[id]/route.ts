@@ -91,6 +91,7 @@ export async function GET(
 
   let hasApplied = false;
   let hasCareerProfile = false;
+  let profileReadyToApply = false;
 
   if (dev) {
     const [appResult, profileResult] = await Promise.all([
@@ -102,13 +103,14 @@ export async function GET(
         .maybeSingle(),
       admin
         .from("career_profiles")
-        .select("id")
+        .select("id, first_name, last_name, email")
         .eq("id", dev.id)
         .maybeSingle(),
     ]);
 
     hasApplied = !!appResult.data;
     hasCareerProfile = !!profileResult.data;
+    profileReadyToApply = !!(profileResult.data?.first_name && profileResult.data?.last_name && profileResult.data?.email);
   }
 
   // Only track views for active listings from authenticated users
@@ -130,6 +132,8 @@ export async function GET(
     listing,
     hasApplied,
     hasCareerProfile,
+    profileReadyToApply,
+    hasExternalUrl: !!listing.apply_url,
     isAuthenticated: !!user,
     isPreview: listing.status !== "active",
     ...(closedReason && { closedReason }),

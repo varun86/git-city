@@ -39,7 +39,7 @@ export interface ValidatedListingFields {
   seniority: string;
   contract_type: string;
   web_type: string;
-  apply_url: string;
+  apply_url: string | null;
   location_type: string;
   location_restriction: string;
   location_countries: string[];
@@ -115,8 +115,8 @@ export function validateListingFields(
     return { error: `Maximum ${MAX_TECH_TAGS} tech tags` };
   }
 
-  // Apply URL
-  if (!apply_url || typeof apply_url !== "string" || !isValidUrl(apply_url)) {
+  // Apply URL (optional — null means native applications within Git City)
+  if (apply_url && typeof apply_url === "string" && !isValidUrl(apply_url)) {
     return { error: "Apply URL must be a valid http/https URL" };
   }
 
@@ -155,7 +155,7 @@ export function validateListingFields(
       seniority: seniority as string,
       contract_type: contract_type as string,
       web_type: web_type as string,
-      apply_url: apply_url as string,
+      apply_url: (apply_url && typeof apply_url === "string") ? apply_url : null,
       location_type: locType,
       location_restriction: locRestriction,
       location_countries: locCountries,

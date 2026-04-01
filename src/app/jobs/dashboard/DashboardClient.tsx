@@ -173,6 +173,7 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
   const totalActive = listings.filter((l) => l.status === "active").length;
   const totalViews = listings.reduce((sum, l) => sum + l.view_count, 0);
   const totalApplies = listings.reduce((sum, l) => sum + l.apply_count, 0);
+  const totalClicks = listings.reduce((sum, l) => sum + (l.click_count ?? 0), 0);
 
   // Filtered + searched + sorted listings
   let filtered = statusFilter === "all" ? listings : listings.filter((l) => l.status === statusFilter);
@@ -322,6 +323,7 @@ export default function DashboardClient({ advertiserEmail }: { advertiserEmail: 
               <StatCard value={String(totalActive)} label="Active now" accent="#4ade80" />
               <StatCard value={String(totalViews)} label="Total views" />
               <StatCard value={String(totalApplies)} label="Applications" accent="#c8e64a" />
+              {totalClicks > 0 && <StatCard value={String(totalClicks)} label="External clicks" />}
             </div>
 
             {/* Filter tabs + Search + Sort */}
@@ -541,7 +543,11 @@ function ListingCard({ listing, onAction }: { listing: JobListing; onAction: (id
           {/* Metrics grid */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <MiniStat value={listing.view_count} label="Views" />
-            <MiniStat value={listing.apply_count} label="Applications" accent={hasApplicants} />
+            {listing.apply_url ? (
+              <MiniStat value={listing.click_count ?? 0} label="Ext. Clicks" accent={(listing.click_count ?? 0) > 0} />
+            ) : (
+              <MiniStat value={listing.apply_count} label="Applications" accent={hasApplicants} />
+            )}
             {listing.salary_min > 0 && (
               <div className="border border-border/30 px-3 py-2">
                 <p className="text-xs text-lime tabular-nums">{listing.salary_currency} {listing.salary_min.toLocaleString()}-{listing.salary_max.toLocaleString()}</p>

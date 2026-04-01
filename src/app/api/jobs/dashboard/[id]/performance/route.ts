@@ -18,7 +18,7 @@ export async function GET(
   // Verify ownership
   const { data: listing } = await admin
     .from("job_listings")
-    .select("id, view_count, apply_count, profile_count, published_at, company:job_company_profiles!inner(advertiser_id)")
+    .select("id, view_count, apply_count, click_count, profile_count, published_at, company:job_company_profiles!inner(advertiser_id)")
     .eq("id", id)
     .single();
 
@@ -33,6 +33,7 @@ export async function GET(
   const funnel = {
     views: listing.view_count ?? 0,
     applies: listing.apply_count ?? 0,
+    clicks: listing.click_count ?? 0,
     profiles: listing.profile_count ?? 0,
   };
 
@@ -55,16 +56,17 @@ export async function GET(
   const applications = applicationsRes.data;
 
   // Bucket by day — fill all 30 days so the sparkline always has context
-  const dailyCounts: Record<string, { views: number; applies: number }> = {};
+  const dailyCounts: Record<string, { views: number; applies: number; clicks: number }> = {};
   for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    dailyCounts[d.toISOString().slice(0, 10)] = { views: 0, applies: 0 };
+    dailyCounts[d.toISOString().slice(0, 10)] = { views: 0, applies: 0, clicks: 0 };
   }
   for (const e of events ?? []) {
     const day = e.created_at.slice(0, 10);
-    if (!dailyCounts[day]) dailyCounts[day] = { views: 0, applies: 0 };
+    if (!dailyCounts[day]) dailyCounts[day] = { views: 0, applies: 0, clicks: 0 };
     if (e.event_type === "view") dailyCounts[day].views++;
     if (e.event_type === "apply_click") dailyCounts[day].applies++;
+    if (e.event_type === "external_click") dailyCounts[day].clicks++;
   }
 
   const daily = Object.entries(dailyCounts)

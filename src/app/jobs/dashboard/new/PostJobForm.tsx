@@ -224,7 +224,6 @@ export default function PostJobForm() {
     if (s === 3) {
       if (form.techTags.length === 0) errs.techTags = "Add at least 1 tech tag";
       if (form.applyUrl && !isValidUrl(form.applyUrl)) errs.applyUrl = "Must be a valid http/https URL";
-      if (!form.applyUrl) errs.applyUrl = "Apply URL is required";
     }
     if (s === 4) {
       const min = Number(form.salaryMin);
@@ -272,7 +271,7 @@ export default function PostJobForm() {
           seniority: form.seniority,
           contract_type: form.contractType,
           web_type: "both",
-          apply_url: form.applyUrl,
+          apply_url: form.applyUrl || null,
           location_type: form.locationType,
           location_restriction: form.locationRestriction,
           location_city: form.locationCity || null,
@@ -321,6 +320,7 @@ export default function PostJobForm() {
         seniority: form.seniority,
         tier: "free",
         has_salary: parseInt(form.salaryMin) > 0,
+        is_native: !form.applyUrl,
       });
       const { url } = await checkoutRes.json();
       window.location.href = url;
@@ -508,9 +508,12 @@ export default function PostJobForm() {
             <Sep />
 
             {/* Apply URL */}
-            <Field label="Apply URL" required hint="Where candidates go when they click Apply">
-              <input value={form.applyUrl} onChange={(e) => update({ applyUrl: e.target.value })} placeholder="https://company.com/careers/role" className={`${inputClass} mt-2`} />
+            <Field label="Apply URL" hint="Leave empty to receive applications directly within Git City (candidates submit their Career Profile). Add a URL to redirect candidates to an external page.">
+              <input value={form.applyUrl} onChange={(e) => update({ applyUrl: e.target.value })} placeholder="https://company.com/careers/role (optional)" className={`${inputClass} mt-2`} />
               {fieldErrors.applyUrl && <Err>{fieldErrors.applyUrl}</Err>}
+              {!form.applyUrl && (
+                <p className="mt-1.5 text-[10px] text-lime/70 normal-case">Candidates will apply with their Career Profile directly on Git City.</p>
+              )}
             </Field>
 
             <Sep />
