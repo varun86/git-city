@@ -36,6 +36,8 @@ import XpBar from "@/components/XpBar";
 import PixelBalance from "@/components/PixelBalance";
 import { rankFromLevel, tierFromLevel, levelProgress, xpForLevel } from "@/lib/xp";
 import LoadingScreen, { type LoadingStage } from "@/components/LoadingScreen";
+import MiniMap from "@/components/MiniMap";
+import RadarMap from "@/components/RadarMap";
 import { getCityCache, setCityCache, clearCityCache } from "@/lib/cityCache";
 import { DEFAULT_SKY_ADS, buildAdLink, trackAdEvent, trackAdEvents, appendClickId, isBuildingAd } from "@/lib/skyAds";
 import { track } from "@vercel/analytics";
@@ -444,6 +446,8 @@ function HomeContent() {
 
   const [hud, setHud] = useState({ speed: 0, altitude: 0 });
   const [playerPos, setPlayerPos] = useState<{ x: number; z: number }>({ x: 0, z: 0 });
+  const [playerYaw, setPlayerYaw] = useState(0);
+  const [cameraPos, setCameraPos] = useState<{ x: number; z: number; tx: number; tz: number }>({ x: 800, z: 1000, tx: 0, tz: 0 });
   const [districtAnnouncement, setDistrictAnnouncement] = useState<{ name: string; color: string; population: number } | null>(null);
   const lastDistrictRef = useRef<string | null>(null);
   const announceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -2228,6 +2232,7 @@ function HomeContent() {
         themeIndex={themeIndex}
         onHud={(s, a, x, z, yaw) => {
           setHud({ speed: s, altitude: a });
+          setPlayerYaw(yaw);
           // Look-ahead: ~40u ahead of airplane = center of screen
           const mapX = x - Math.sin(yaw) * 40;
           const mapZ = z - Math.cos(yaw) * 40;
@@ -2278,6 +2283,7 @@ function HomeContent() {
         flyStartPaused={showFlyControls}
         holdRise={loadStage !== "done"}
         celebrationActive={celebrationActive}
+        onCameraMove={(x, z, tx, tz) => setCameraPos({ x, z, tx, tz })}
         skyAds={skyAds}
         onAdClick={(ad) => {
           trackSkyAdClick(ad.id, ad.vehicle, ad.link);
@@ -2812,13 +2818,29 @@ function HomeContent() {
         </div>
       )}
 
-      {/* ─── Mini-map ─── */}
+      {/* ─── Mini-map (legacy fly-only) ─── */}
       <MiniMap
         buildings={buildings}
         playerX={playerPos.x}
         playerZ={playerPos.z}
         visible={flyMode && !isMobile}
         currentDistrict={lastDistrictRef.current}
+      />
+
+      {/* ─── Radar Map (always-visible bottom-left) ─── */}
+      <RadarMap
+        buildings={buildings}
+        playerX={playerPos.x}
+        playerZ={playerPos.z}
+        playerYaw={playerYaw}
+        cameraX={cameraPos.x}
+        cameraZ={cameraPos.z}
+        cameraTargetX={cameraPos.tx}
+        cameraTargetZ={cameraPos.tz}
+        visible={loadStage === "done" && !introMode && !rabbitCinematic && (exploreMode || flyMode)}
+        flyMode={flyMode}
+        currentDistrict={lastDistrictRef.current}
+        districtZones={districtZones}
       />
 
       {/* ─── Explore Mode: minimal UI ─── */}
